@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-light: #f8fafc;
+            --bg-dark: #0f172a;
+            --card-light: #ffffff;
+            --card-dark: #1e293b;
+            --text-light: #1e293b;
+            --text-dark: #f1f5f9;
+            --border-light: #e2e8f0;
+            --border-dark: #334155;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-light);
+            transition: all 0.3s ease;
+        }
+
+        body.dark {
+            background: var(--bg-dark);
+            color: var(--text-dark);
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--card-light);
+            border-right: 1px solid var(--border-light);
+            padding: 2rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        .dark .sidebar {
+            background: var(--card-dark);
+            border-right-color: var(--border-dark);
+        }
+
+        .sidebar-header {
+            padding: 0 2rem 2rem;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 2rem;
+        }
+
+        .dark .sidebar-header {
+            border-bottom-color: var(--border-dark);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin: 0.5rem 0;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 2rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .header-left h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-subtitle {
+            color: #64748b;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-light);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dark .theme-toggle {
+            border-color: var(--border-dark);
+            color: var(--text-dark);
+        }
+
+        .theme-toggle:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-light);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .dark .stat-card {
+            background: var(--card-dark);
+            border-color: var(--border-dark);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-change {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .positive {
+            color: var(--secondary-color);
+        }
+
+        .negative {
+            color: var(--danger-color);
+        }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--card-light);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-light);
+        }
+
+        .dark .chart-card {
+            background: var(--card-dark);
+            border-color: var(--border-dark);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Trade Form */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-light);
+            border-radius: 0.5rem;
+            background: var(--card-light);
+            color: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .dark .form-input, .dark .form-select, .dark .form-textarea {
+            border-color: var(--border-dark);
+            background: var(--card-dark);
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #64748b;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        /* Tables */
+        .table-container {
+            background: var(--card-light);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-light);
+        }
+
+        .dark .table-container {
+            background: var(--card-dark);
+            border-color: var(--border-dark);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th, .table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .dark .table th, .dark .table td {
+            border-bottom-color: var(--border-dark);
+        }
+
+        .table th {
+            background: #f8fafc;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .dark .table th {
+            background: #0f172a;
+        }
+
+        /* Calendar */
+        .calendar-container {
+            background: var(--card-light);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-light);
+        }
+
+        .dark .calendar-container {
+            background: var(--card-dark);
+            border-color: var(--border-dark);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border-light);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .dark .calendar-grid {
+            background: var(--border-dark);
+        }
+
+        .calendar-day {
+            background: var(--card-light);
+            padding: 1rem;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .dark .calendar-day {
+            background: var(--card-dark);
+        }
+
+        .calendar-day.profit {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .calendar-day.loss {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-light);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span>📈</span>
+                    <span>TradingJournal Pro</span>
+                </div>
+            </div>
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link active" data-section="dashboard">
+                            <span class="nav-icon">📊</span>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="journal">
+                            <span class="nav-icon">📝</span>
+                            <span>Trade Journal</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="reports">
+                            <span class="nav-icon">📈</span>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="calendar">
+                            <span class="nav-icon">📅</span>
+                            <span>Calendar</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-section="settings">
+                            <span class="nav-icon">⚙️</span>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1>Trading Dashboard</h1>
+                    <p class="header-subtitle">Track your trading performance and improve your strategy</p>
+                </div>
+                <div class="header-right">
+                    <button class="theme-toggle" onclick="toggleTheme()">🌓 Theme</button>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="section active">
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Total P&L</div>
+                        </div>
+                        <div class="stat-value positive" id="total-pnl">$0.00</div>
+                        <div class="stat-change positive" id="pnl-change">+0.00% this month</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Win Rate (Trades)</div>
+                        </div>
+                        <div class="stat-value" id="win-rate-trades">0%</div>
+                        <div class="stat-change" id="trades-count">0 trades total</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Win Rate (Days)</div>
+                        </div>
+                        <div class="stat-value" id="win-rate-days">0%</div>
+                        <div class="stat-change" id="days-traded">0 days traded</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Profit Factor</div>
+                        </div>
+                        <div class="stat-value" id="profit-factor">0.00</div>
+                        <div class="stat-change" id="avg-trade">$0.00 avg trade</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Average Win</div>
+                        </div>
+                        <div class="stat-value positive" id="avg-win">$0.00</div>
+                        <div class="stat-change" id="largest-win">$0.00 largest</div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <div class="stat-title">Average Loss</div>
+                        </div>
+                        <div class="stat-value negative" id="avg-loss">$0.00</div>
+                        <div class="stat-change" id="largest-loss">$0.00 largest</div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Cumulative P&L</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="pnlChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Win/Loss Distribution</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="winLossChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Journal Section -->
+            <section id="journal" class="section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Add New Trade</h3>
+                    </div>
+                    
+                    <form id="trade-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">Date</label>
+                                <input type="date" class="form-input" id="trade-date" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Symbol</label>
+                                <input type="text" class="form-input" id="symbol" placeholder="AAPL" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Direction</label>
+                                <select class="form-select" id="direction" required>
+                                    <option value="">Select</option>
+                                    <option value="long">Long</option>
+                                    <option value="short">Short</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-input" id="quantity" placeholder="100" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Entry Price</label>
+                                <input type="number" class="form-input" id="entry-price" step="0.01" placeholder="150.00" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Exit Price</label>
+                                <input type="number" class="form-input" id="exit-price" step="0.01" placeholder="155.00" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Stop Loss</label>
+                                <input type="number" class="form-input" id="stop-loss" step="0.01" placeholder="145.00">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Take Profit</label>
+                                <input type="number" class="form-input" id="take-profit" step="0.01" placeholder="160.00">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Notes & Emotions</label>
+                            <textarea class="form-textarea" id="trade-notes" placeholder="What was your thought process? How did you feel during this trade? What did you learn?"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Tags</label>
+                            <input type="text" class="form-input" id="tags" placeholder="discipline-error, A+ setup, overtraded">
+                        </div>
+                        
+                        <button type="submit" class="btn">Add Trade</button>
+                    </form>
+                </div>
+
+                <!-- Trades Table -->
+                <div class="table-container" style="margin-top: 2rem;">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Symbol</th>
+                                <th>Direction</th>
+                                <th>Quantity</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>P&L</th>
+                                <th>R Multiple</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-table">
+                            <!-- Trades will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Performance Analytics</h3>
+                    </div>
+                    
+                    <div class="charts-grid" style="margin-top: 2rem;">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Monthly P&L</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="monthlyChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3 class="chart-title">R-Multiple Distribution</h3>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="rMultipleChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Risk Metrics -->
+                    <div class="stats-grid" style="margin-top: 2rem;">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-title">Maximum Drawdown</div>
+                            </div>
+                            <div class="stat-value negative" id="max-drawdown">0%</div>
+                            <div class="stat-change" id="drawdown-period">No drawdown period</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-title">Largest Win Streak</div>
+                            </div>
+                            <div class="stat-value positive" id="win-streak">0</div>
+                            <div class="stat-change" id="current-streak">Current: 0</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <div class="stat-title">Largest Loss Streak</div>
+                            </div>
+                            <div class="stat-value negative" id="loss-streak">0</div>
+                            <div class="stat-change" id="current-loss-streak">Current: 0</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Calendar Section -->
+            <section id="calendar" class="section">
+                <div class="calendar-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Trading Calendar</h3>
+                        <div>
+                            <button class="btn-secondary btn" onclick="changeMonth(-1)">← Prev</button>
+                            <span id="calendar-month" style="margin: 0 1rem; font-weight: 600;"></span>
+                            <button class="btn-secondary btn" onclick="changeMonth(1)">Next →</button>
+                        </div>
+                    </div>
+                    
+                    <div class="calendar-grid" id="calendar-grid">
+                        <!-- Calendar will be populated here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings" class="section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Settings & Data Management</h3>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Import Trades from CSV</label>
+                        <input type="file" class="form-input" id="csv-import" accept=".csv">
+                        <button class="btn" style="margin-top: 1rem;" onclick="importCSV()">Import CSV</button>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <label class="form-label">Export Data</label>
+                        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                            <button class="btn-secondary btn" onclick="exportToCSV()">Export to CSV</button>
+                            <button class="btn-secondary btn" onclick="exportToJSON()">Export to JSON</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <label class="form-label">Clear All Data</label>
+                        <button class="btn" style="background: var(--danger-color); margin-top: 1rem;" onclick="clearAllData()">Clear All Trades</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Application State
+        let trades = JSON.parse(localStorage.getItem('trades') || '[]');
+        let currentSection = 'dashboard';
+        let currentMonth = new Date();
+        let charts = {};
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            setupEventListeners();
+            updateDashboard();
+            renderTradesTable();
+            renderCalendar();
+            setTodayDate();
+        }
+
+        function setupEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const section = this.getAttribute('data-section');
+                    switchSection(section);
+                });
+            });
+
+            // Trade form
+            document.getElementById('trade-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addTrade();
+            });
+        }
+
+        function switchSection(sectionName) {
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionName).classList.add('active');
+
+            currentSection = sectionName;
+
+            // Initialize section-specific content
+            if (sectionName === 'dashboard') {
+                updateDashboard();
+            } else if (sectionName === 'reports') {
+                updateReports();
+            } else if (sectionName === 'calendar') {
+                renderCalendar();
+            }
+        }
+
+        function setTodayDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('trade-date').value = today;
+        }
+
+        function addTrade() {
+            const formData = {
+                id: Date.now(),
+                date: document.getElementById('trade-date').value,
+                symbol: document.getElementById('symbol').value.toUpperCase(),
+                direction: document.getElementById('direction').value,
+                quantity: parseInt(document.getElementById('quantity').value),
+                entryPrice: parseFloat(document.getElementById('entry-price').value),
+                exitPrice: parseFloat(document.getElementById('exit-price').value),
+                stopLoss: parseFloat(document.getElementById('stop-loss').value) || null,
+                takeProfit: parseFloat(document.getElementById('take-profit').value) || null,
+                notes: document.getElementById('trade-notes').value,
+                tags: document.getElementById('tags').value
+            };
+
+            // Calculate P&L and R-multiple
+            const pnl = calculatePnL(formData);
+            const rMultiple = calculateRMultiple(formData, pnl);
+
+            formData.pnl = pnl;
+            formData.rMultiple = rMultiple;
+
+            trades.push(formData);
+            saveTrades();
+            
+            // Reset form
+            document.getElementById('trade-form').reset();
+            setT
