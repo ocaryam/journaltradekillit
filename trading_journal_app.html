@@ -120,7 +120,7 @@
 
         .header {
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
         }
@@ -428,6 +428,25 @@
 
         .calendar-day.loss {
             background: rgba(239, 68, 68, 0.1);
+        }
+
+        .calendar-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border-light);
+            border-radius: 0.5rem 0.5rem 0 0;
+            overflow: hidden;
+            margin-bottom: 1px;
+        }
+
+        .calendar-header div {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.875rem;
         }
 
         /* Responsive */
@@ -765,6 +784,16 @@
                         </div>
                     </div>
                     
+                    <div class="calendar-header">
+                        <div>Sun</div>
+                        <div>Mon</div>
+                        <div>Tue</div>
+                        <div>Wed</div>
+                        <div>Thu</div>
+                        <div>Fri</div>
+                        <div>Sat</div>
+                    </div>
+                    
                     <div class="calendar-grid" id="calendar-grid">
                         <!-- Calendar will be populated here -->
                     </div>
@@ -819,6 +848,11 @@
             renderTradesTable();
             renderCalendar();
             setTodayDate();
+            
+            // Add sample trades if none exist
+            if (trades.length === 0) {
+                addSampleTrades();
+            }
         }
 
         function setupEventListeners() {
@@ -868,6 +902,59 @@
             document.getElementById('trade-date').value = today;
         }
 
+        function addSampleTrades() {
+            const sampleTrades = [
+                {
+                    id: 1,
+                    date: '2024-01-15',
+                    symbol: 'AAPL',
+                    direction: 'long',
+                    quantity: 100,
+                    entryPrice: 185.50,
+                    exitPrice: 192.30,
+                    stopLoss: 180.00,
+                    takeProfit: 195.00,
+                    notes: 'Strong earnings report, bought on dip. Held through volatility.',
+                    tags: 'earnings-play, A+ setup',
+                    pnl: 680.00,
+                    rMultiple: 1.24
+                },
+                {
+                    id: 2,
+                    date: '2024-01-16',
+                    symbol: 'TSLA',
+                    direction: 'short',
+                    quantity: 50,
+                    entryPrice: 238.45,
+                    exitPrice: 233.20,
+                    stopLoss: 245.00,
+                    takeProfit: 225.00,
+                    notes: 'Overvalued after pump, shorted resistance. Good timing.',
+                    tags: 'mean-reversion, discipline',
+                    pnl: 262.50,
+                    rMultiple: 0.80
+                },
+                {
+                    id: 3,
+                    date: '2024-01-17',
+                    symbol: 'SPY',
+                    direction: 'long',
+                    quantity: 200,
+                    entryPrice: 478.20,
+                    exitPrice: 475.10,
+                    stopLoss: 475.00,
+                    takeProfit: 485.00,
+                    notes: 'Bad entry, market turned against me. Cut losses quickly.',
+                    tags: 'discipline-error, cut-losses',
+                    pnl: -620.00,
+                    rMultiple: -0.97
+                }
+            ];
+            
+            trades.push(...sampleTrades);
+            saveTrades();
+        }
+
         function addTrade() {
             const formData = {
                 id: Date.now(),
@@ -895,4 +982,594 @@
             
             // Reset form
             document.getElementById('trade-form').reset();
-            setT
+            setTodayDate();
+            
+            // Update displays
+            updateDashboard();
+            renderTradesTable();
+            renderCalendar();
+            
+            alert('Trade added successfully!');
+        }
+
+        function calculatePnL(trade) {
+            const { direction, quantity, entryPrice, exitPrice } = trade;
+            let pnl;
+            
+            if (direction === 'long') {
+                pnl = (exitPrice - entryPrice) * quantity;
+            } else {
+                pnl = (entryPrice - exitPrice) * quantity;
+            }
+            
+            return Math.round(pnl * 100) / 100;
+        }
+
+        function calculateRMultiple(trade, pnl) {
+            const { direction, entryPrice, stopLoss } = trade;
+            if (!stopLoss) return 0;
+            
+            const risk = Math.abs(entryPrice - stopLoss);
+            const rMultiple = pnl / (risk * trade.quantity);
+            
+            return Math.round(rMultiple * 100) / 100;
+        }
+
+        function saveTrades() {
+            localStorage.setItem('trades', JSON.stringify(trades));
+        }
+
+        function updateDashboard() {
+            const stats = calculateStats();
+            
+            // Update stat cards
+            document.getElementById('total-pnl').textContent = `${stats.totalPnL.toFixed(2)}`;
+            document.getElementById('total-pnl').className = `stat-value ${stats.totalPnL >= 0 ? 'positive' : 'negative'}`;
+            
+            document.getElementById('win-rate-trades').textContent = `${stats.winRateTrades}%`;
+            document.getElementById('trades-count').textContent = `${stats.totalTrades} trades total`;
+            
+            document.getElementById('win-rate-days').textContent = `${stats.winRateDays}%`;
+            document.getElementById('days-traded').textContent = `${stats.daysTraded} days traded`;
+            
+            document.getElementById('profit-factor').textContent = stats.profitFactor.toFixed(2);
+            document.getElementById('avg-trade').textContent = `${stats.avgTrade.toFixed(2)} avg trade`;
+            
+            document.getElementById('avg-win').textContent = `${stats.avgWin.toFixed(2)}`;
+            document.getElementById('largest-win').textContent = `${stats.largestWin.toFixed(2)} largest`;
+            
+            document.getElementById('avg-loss').textContent = `${Math.abs(stats.avgLoss).toFixed(2)}`;
+            document.getElementById('largest-loss').textContent = `${Math.abs(stats.largestLoss).toFixed(2)} largest`;
+
+            // Update charts
+            updatePnLChart();
+            updateWinLossChart();
+        }
+
+        function calculateStats() {
+            if (trades.length === 0) {
+                return {
+                    totalPnL: 0,
+                    winRateTrades: 0,
+                    winRateDays: 0,
+                    totalTrades: 0,
+                    daysTraded: 0,
+                    profitFactor: 0,
+                    avgTrade: 0,
+                    avgWin: 0,
+                    avgLoss: 0,
+                    largestWin: 0,
+                    largestLoss: 0
+                };
+            }
+
+            const totalPnL = trades.reduce((sum, trade) => sum + trade.pnl, 0);
+            const winningTrades = trades.filter(trade => trade.pnl > 0);
+            const losingTrades = trades.filter(trade => trade.pnl < 0);
+            
+            const totalWins = winningTrades.reduce((sum, trade) => sum + trade.pnl, 0);
+            const totalLosses = Math.abs(losingTrades.reduce((sum, trade) => sum + trade.pnl, 0));
+            
+            const uniqueDates = [...new Set(trades.map(trade => trade.date))];
+            const dailyPnL = uniqueDates.map(date => {
+                return trades
+                    .filter(trade => trade.date === date)
+                    .reduce((sum, trade) => sum + trade.pnl, 0);
+            });
+            
+            const profitableDays = dailyPnL.filter(pnl => pnl > 0).length;
+
+            return {
+                totalPnL: totalPnL,
+                winRateTrades: trades.length > 0 ? Math.round((winningTrades.length / trades.length) * 100) : 0,
+                winRateDays: dailyPnL.length > 0 ? Math.round((profitableDays / dailyPnL.length) * 100) : 0,
+                totalTrades: trades.length,
+                daysTraded: uniqueDates.length,
+                profitFactor: totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? 999 : 0,
+                avgTrade: totalPnL / trades.length,
+                avgWin: winningTrades.length > 0 ? totalWins / winningTrades.length : 0,
+                avgLoss: losingTrades.length > 0 ? losingTrades.reduce((sum, trade) => sum + trade.pnl, 0) / losingTrades.length : 0,
+                largestWin: winningTrades.length > 0 ? Math.max(...winningTrades.map(trade => trade.pnl)) : 0,
+                largestLoss: losingTrades.length > 0 ? Math.min(...losingTrades.map(trade => trade.pnl)) : 0
+            };
+        }
+
+        function updatePnLChart() {
+            const ctx = document.getElementById('pnlChart').getContext('2d');
+            
+            if (charts.pnlChart) {
+                charts.pnlChart.destroy();
+            }
+
+            const sortedTrades = [...trades].sort((a, b) => new Date(a.date) - new Date(b.date));
+            let cumulativePnL = 0;
+            const data = sortedTrades.map(trade => {
+                cumulativePnL += trade.pnl;
+                return {
+                    x: trade.date,
+                    y: cumulativePnL
+                };
+            });
+
+            charts.pnlChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Cumulative P&L',
+                        data: data,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                parser: 'YYYY-MM-DD',
+                                displayFormats: {
+                                    day: 'MMM DD'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '
+                 + value.toFixed(0);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateWinLossChart() {
+            const ctx = document.getElementById('winLossChart').getContext('2d');
+            
+            if (charts.winLossChart) {
+                charts.winLossChart.destroy();
+            }
+
+            const winningTrades = trades.filter(trade => trade.pnl > 0).length;
+            const losingTrades = trades.filter(trade => trade.pnl < 0).length;
+
+            charts.winLossChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Wins', 'Losses'],
+                    datasets: [{
+                        data: [winningTrades, losingTrades],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTradesTable() {
+            const tbody = document.getElementById('trades-table');
+            tbody.innerHTML = '';
+
+            const sortedTrades = [...trades].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            sortedTrades.forEach(trade => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${trade.date}</td>
+                    <td>${trade.symbol}</td>
+                    <td style="text-transform: capitalize;">${trade.direction}</td>
+                    <td>${trade.quantity}</td>
+                    <td>${trade.entryPrice.toFixed(2)}</td>
+                    <td>${trade.exitPrice.toFixed(2)}</td>
+                    <td class="${trade.pnl >= 0 ? 'positive' : 'negative'}">${trade.pnl.toFixed(2)}</td>
+                    <td class="${trade.rMultiple >= 0 ? 'positive' : 'negative'}">${trade.rMultiple.toFixed(2)}R</td>
+                    <td>
+                        <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="deleteTrade(${trade.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function deleteTrade(tradeId) {
+            if (confirm('Are you sure you want to delete this trade?')) {
+                trades = trades.filter(trade => trade.id !== tradeId);
+                saveTrades();
+                updateDashboard();
+                renderTradesTable();
+                renderCalendar();
+            }
+        }
+
+        function renderCalendar() {
+            const calendarGrid = document.getElementById('calendar-grid');
+            const monthSpan = document.getElementById('calendar-month');
+            
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            
+            monthSpan.textContent = currentMonth.toLocaleDateString('en-US', { 
+                month: 'long', 
+                year: 'numeric' 
+            });
+
+            // Clear previous calendar
+            calendarGrid.innerHTML = '';
+
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay();
+
+            // Add empty cells for days before the first day of the month
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day';
+                calendarGrid.appendChild(emptyDay);
+            }
+
+            // Add days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayTrades = trades.filter(trade => trade.date === dateStr);
+                const dailyPnL = dayTrades.reduce((sum, trade) => sum + trade.pnl, 0);
+
+                if (dayTrades.length > 0) {
+                    dayElement.classList.add(dailyPnL >= 0 ? 'profit' : 'loss');
+                    dayElement.innerHTML = `
+                        <div style="font-weight: 600;">${day}</div>
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem;">${dailyPnL.toFixed(0)}</div>
+                    `;
+                } else {
+                    dayElement.textContent = day;
+                }
+
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        function changeMonth(direction) {
+            currentMonth.setMonth(currentMonth.getMonth() + direction);
+            renderCalendar();
+        }
+
+        function updateReports() {
+            updateMonthlyChart();
+            updateRMultipleChart();
+            updateRiskMetrics();
+        }
+
+        function updateMonthlyChart() {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            if (charts.monthlyChart) {
+                charts.monthlyChart.destroy();
+            }
+
+            // Group trades by month
+            const monthlyData = {};
+            trades.forEach(trade => {
+                const monthKey = trade.date.substring(0, 7); // YYYY-MM
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = 0;
+                }
+                monthlyData[monthKey] += trade.pnl;
+            });
+
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const data = sortedMonths.map(month => ({
+                x: month + '-01',
+                y: monthlyData[month]
+            }));
+
+            charts.monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    datasets: [{
+                        label: 'Monthly P&L',
+                        data: data,
+                        backgroundColor: data.map(d => d.y >= 0 ? '#10b981' : '#ef4444')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                parser: 'YYYY-MM-DD',
+                                displayFormats: {
+                                    month: 'MMM YYYY'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '
+                 + value.toFixed(0);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRMultipleChart() {
+            const ctx = document.getElementById('rMultipleChart').getContext('2d');
+            
+            if (charts.rMultipleChart) {
+                charts.rMultipleChart.destroy();
+            }
+
+            // Group trades by R-multiple ranges
+            const ranges = {
+                'Loss > -2R': 0,
+                '-2R to -1R': 0,
+                '-1R to 0R': 0,
+                '0R to 1R': 0,
+                '1R to 2R': 0,
+                'Win > 2R': 0
+            };
+
+            trades.forEach(trade => {
+                const r = trade.rMultiple;
+                if (r < -2) ranges['Loss > -2R']++;
+                else if (r < -1) ranges['-2R to -1R']++;
+                else if (r < 0) ranges['-1R to 0R']++;
+                else if (r < 1) ranges['0R to 1R']++;
+                else if (r < 2) ranges['1R to 2R']++;
+                else ranges['Win > 2R']++;
+            });
+
+            charts.rMultipleChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(ranges),
+                    datasets: [{
+                        label: 'Trade Count',
+                        data: Object.values(ranges),
+                        backgroundColor: [
+                            '#ef4444', '#f87171', '#fca5a5',
+                            '#86efac', '#4ade80', '#10b981'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRiskMetrics() {
+            // Calculate maximum drawdown
+            const sortedTrades = [...trades].sort((a, b) => new Date(a.date) - new Date(b.date));
+            let cumulativePnL = 0;
+            let peak = 0;
+            let maxDrawdown = 0;
+
+            sortedTrades.forEach(trade => {
+                cumulativePnL += trade.pnl;
+                if (cumulativePnL > peak) {
+                    peak = cumulativePnL;
+                }
+                const drawdown = (peak - cumulativePnL) / Math.max(peak, 1) * 100;
+                if (drawdown > maxDrawdown) {
+                    maxDrawdown = drawdown;
+                }
+            });
+
+            // Calculate win/loss streaks
+            let currentStreak = 0;
+            let maxWinStreak = 0;
+            let maxLossStreak = 0;
+            let currentWinStreak = 0;
+            let currentLossStreak = 0;
+
+            sortedTrades.forEach(trade => {
+                if (trade.pnl > 0) {
+                    currentWinStreak++;
+                    currentLossStreak = 0;
+                    maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
+                } else {
+                    currentLossStreak++;
+                    currentWinStreak = 0;
+                    maxLossStreak = Math.max(maxLossStreak, currentLossStreak);
+                }
+            });
+
+            // Update display
+            document.getElementById('max-drawdown').textContent = `${maxDrawdown.toFixed(1)}%`;
+            document.getElementById('win-streak').textContent = maxWinStreak;
+            document.getElementById('loss-streak').textContent = maxLossStreak;
+            document.getElementById('current-streak').textContent = `Current: ${currentWinStreak}`;
+            document.getElementById('current-loss-streak').textContent = `Current: ${currentLossStreak}`;
+        }
+
+        // Settings functions
+        function importCSV() {
+            const fileInput = document.getElementById('csv-import');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file first.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csv = e.target.result;
+                const lines = csv.split('\n');
+                const headers = lines[0].split(',').map(h => h.trim());
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    if (values.length < headers.length) continue;
+                    
+                    const trade = {};
+                    headers.forEach((header, index) => {
+                        trade[header.toLowerCase().replace(/[^a-z0-9]/g, '')] = values[index];
+                    });
+
+                    // Convert to proper format
+                    const newTrade = {
+                        id: Date.now() + i,
+                        date: trade.date || '',
+                        symbol: (trade.symbol || '').toUpperCase(),
+                        direction: trade.direction || 'long',
+                        quantity: parseInt(trade.quantity || 0),
+                        entryPrice: parseFloat(trade.entryprice || 0),
+                        exitPrice: parseFloat(trade.exitprice || 0),
+                        stopLoss: parseFloat(trade.stoploss) || null,
+                        takeProfit: parseFloat(trade.takeprofit) || null,
+                        notes: trade.notes || '',
+                        tags: trade.tags || ''
+                    };
+
+                    newTrade.pnl = calculatePnL(newTrade);
+                    newTrade.rMultiple = calculateRMultiple(newTrade, newTrade.pnl);
+                    
+                    trades.push(newTrade);
+                }
+
+                saveTrades();
+                updateDashboard();
+                renderTradesTable();
+                renderCalendar();
+                alert(`Imported ${lines.length - 1} trades successfully!`);
+            };
+            
+            reader.readAsText(file);
+        }
+
+        function exportToCSV() {
+            const headers = ['Date', 'Symbol', 'Direction', 'Quantity', 'Entry Price', 'Exit Price', 'Stop Loss', 'Take Profit', 'P&L', 'R Multiple', 'Notes', 'Tags'];
+            const csvContent = [
+                headers.join(','),
+                ...trades.map(trade => [
+                    trade.date,
+                    trade.symbol,
+                    trade.direction,
+                    trade.quantity,
+                    trade.entryPrice,
+                    trade.exitPrice,
+                    trade.stopLoss || '',
+                    trade.takeProfit || '',
+                    trade.pnl,
+                    trade.rMultiple,
+                    `"${trade.notes.replace(/"/g, '""')}"`,
+                    trade.tags
+                ].join(','))
+            ].join('\n');
+
+            downloadFile('trading-journal.csv', csvContent, 'text/csv');
+        }
+
+        function exportToJSON() {
+            const jsonContent = JSON.stringify(trades, null, 2);
+            downloadFile('trading-journal.json', jsonContent, 'application/json');
+        }
+
+        function downloadFile(filename, content, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all trading data? This action cannot be undone.')) {
+                trades = [];
+                saveTrades();
+                updateDashboard();
+                renderTradesTable();
+                renderCalendar();
+                alert('All data has been cleared.');
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+        }
+
+        // Load theme preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark');
+        }
+    </script>
+</body>
+</html>
+                
